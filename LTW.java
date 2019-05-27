@@ -1,9 +1,10 @@
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 /**
  * class to encode Borrow Wheeler Transforms using League Table Weights algorithm
- * @author A. Hechachena
+ * @author A. Hechachena  ; abderrahimhechachena@yahoo.co.uk
  * The inverse BWT is adopted and reshaped from unknown source for testing purposes.
  */
 
@@ -14,12 +15,14 @@ public class BWT {
     public static int inputStringLength;      // length of the above.
     public static char[] uniqueCharactersSet; // unique characters in the input string.
     public static int[] uniqueVectorsSums = new int[256];
+    public static char[] inputArr;
     public static char[] inputArr2;           // contains twice the elements of inputArr2 to avoid calculations of reference
     public static int[][] uniqueColumnsWeights = new int[256][]; // for every unique character there is a unique column of weights
     public static int[][] vectorsZeroPositions = new int[256][]; // for every unique character there is a unique column of zero positions
     public static int[] weightsVector;        // this is the final vector containing weights of the input string characters.
-    public static String decodedString;
-    public static String encodedString;
+    public static char[] decodedArray;
+    public static char[] encodedArray;
+    //======================== quick sort ===============================================
     //===================================================================================
     //============================================================= encoding methods.
     // the input inputString is the inputString containing the original text to be B W Transformed
@@ -73,7 +76,7 @@ public class BWT {
     }
     //5) =============================== calculate unique vectors sums ================================================
     public  static void getUniqueVectorsSum(){
-        int columnSum;
+        int columnSum ;
         for(int character : uniqueCharactersSet) {
             columnSum = IntStream.of(uniqueColumnsWeights[character]).sum();
             uniqueVectorsSums[character] = columnSum;
@@ -99,9 +102,11 @@ public class BWT {
             targetColumn = uniqueColumnsWeights[columnName];
             columnSum = 0;
             for(int j:vectorsZeroPositions[columnName]){
+                if(j > i)break;
                 referenceCell = referenceColumn[j+1];
                 columnSum +=  referenceCell;
                 targetColumn[j] = referenceCell;
+                weightsVector[j] -= referenceCell;
             }
             weightsVector[i] += columnSum;
             referenceColumn = targetColumn;
@@ -111,26 +116,24 @@ public class BWT {
     //8) ========== final function to generate encodedString ===================================
     public  static  void bwt_encode(){
         //------------------------------------------------
-        getUniqueCharacters();
-        getUniqueVectorsWeights();
-        getUniqueVectorsSum();
-        getNonZeroVectorsSum();
-        getUniqueVectorsZeroPositions();
-        addZeroSums();
+        getUniqueCharacters();// 1
+        getUniqueVectorsWeights();// 8
+        getUniqueVectorsSum();// 22
+        getNonZeroVectorsSum();// 0
+        getUniqueVectorsZeroPositions();// 6 50000
+        addZeroSums(); // 70   50000
         // ==========
         char[] resultFinal = new char[inputStringLength];
         int inputStringLength1 = inputStringLength - 1;
-        encodedString = "";
         //======== derive index from weights and sort final string
+
         for(int i = 0;i < inputStringLength;i++){
             weightsVector[i] = (weightsVector[i] + inputStringLength)/2;
         }
         for(int i = 0;i < inputStringLength;i++){
             resultFinal[weightsVector[i]] = inputArr2[i + inputStringLength1];
         }
-        for(int i = 0;i < inputStringLength;i++){
-            encodedString = encodedString + resultFinal[i];
-        }
+        encodedArray = resultFinal;
     }
     //===================================================================================================
     //9) =============================== generate random string =========================================
@@ -147,9 +150,11 @@ public class BWT {
     public static String generateStringSample(int flag, int rep, int count) {
         String string;
         if(flag == 1){
+            System.out.println("generate random string");
             string = randomAlphaNumeric(count);
         }else{
             string = "SIX.MIXED.PIXIES.SIFT.SIXTY.PIXIE.DUST.BOXES";
+            System.out.println("generate 2^rep of SIX.MIXED.PIXIES.SIFT.SIXTY.PIXIE.DUST.BOXES");
             for (int i = 0; i < rep; i++) { string = string + string; }
         }
         string = string + '!';
@@ -162,90 +167,82 @@ public class BWT {
      * @author adopted by A.H from unknown source.
      */
     //=============================  decoding ================================================
-
-    public  static int[]  getIndex(int size, int[] buckets, int[] strEncoded, int[] indices){
-        for (int i = 0; i < size; i++){
-            buckets[strEncoded[i]] = buckets[strEncoded[i]] + 1;
-            indices[buckets[strEncoded[i]]] = i;
-        }
-       return indices;
-    }
     //    ================== generate decodedString ==============================
     public  static void bwt_decode()
     {
         // =============== variables declarations ========
-        char[] charArr = encodedString.toCharArray();
-        char[] strDecoded1 = new char[inputStringLength];
-        int[] strEncoded = new int[inputStringLength];
-        for (int i = 0; i < inputStringLength; i++) {
-            strEncoded[i] = (int)charArr[i];
-        }
         int size = inputStringLength;
-        int[] F = strEncoded.clone();
-        int[] strDecoded = new int[size];
+        char[] charArr = encodedArray;
+        int[] arrEncoded = new int[inputStringLength];
+        int[] arrDecoded = new int[size];
+        char[] arrDecoded1 = new char[inputStringLength];
         int[] indices = new int[size];
         int[] buckets = new int[256];
         // =============== process ===========================
-        for(int i = 0;i < size; i++){buckets[strEncoded[i]] = buckets[strEncoded[i]] + 1;}
+        for (int i = 0; i < inputStringLength; i++) { arrEncoded[i] = (int)charArr[i];}
+        int[] F = arrEncoded.clone();
         Arrays.sort(F);
         int j = 0;
+        int size1 = size - 1;
         for (int i = 0;i < 256; i++)
         {
-            while (i > F[j] & j < (size-1))
+            while (i > F[j] & j < (size1))
             {
-                j = j + 1;
+                j += 1;
             }
             buckets[i] = j-1;
         }
         //============
-        indices = getIndex(size, buckets, strEncoded, indices);
+        for (int i = 0; i < size; i++){
+            indices[buckets[arrEncoded[i]] += 1] = i;
+        }
         //============
         j = 0;
         for (int i = 0; i < size; i++)
         {
-            strDecoded[i] = strEncoded[j];
+            arrDecoded[i] = arrEncoded[j];
             j = indices[j];
         }
         //======================== shaping output ====================================
-        int g = 0;
-        for(int i = 0;i < inputStringLength; i++){if(strDecoded[i] == 33){g = i;break;}}
-        for(int i = 0;i < inputStringLength; i++){strDecoded1[i] = (char)strDecoded[i];}
-        String s = String.valueOf(strDecoded1);
-        decodedString = s.substring(g+1,size) + s.substring(0, g);
+        for(int i = 2;i < inputStringLength; i++){arrDecoded1[i-2] = (char)arrDecoded[i];}
+        arrDecoded1[inputStringLength - 2] = (char)arrDecoded[0];
+        arrDecoded1[inputStringLength - 1] = (char)arrDecoded[1];
+        decodedArray = arrDecoded1;
     }
+
     //=========================================================================================
+
     //=========================================================================================
     //11) ================================ maim method ========================================
     public static void main(String[] args) {
         // set flag to 0 to get a repeat pattern data, set flag to 1 to generate random 'counts'
-        inputString = generateStringSample(0, 10, 90000);
+
+        inputString = generateStringSample(1, 11, 50000);// 50000 is the optimal value may be for this machine
         inputStringLength = inputString.length();
+        inputArr = inputString.toCharArray();
         inputArr2 = (inputString + inputString).toCharArray();
         weightsVector = new int[inputStringLength];
         //------------------------ timing encoding process ------------------------
         long startTime = System.nanoTime();
         //---------------------------------------
         bwt_encode();
-        System.out.println(encodedString);
         //---------------------------------------
         long endTime = System.nanoTime();
         long duration = (endTime - startTime) / 10000000;// add two zeroes to get seconds.
-        System.out.println("============= duration in 1/100 second ==============");
+        System.out.println("====== encoding time in 1/100 second ======");
         System.out.println(duration);
         System.out.println("============= number of characters used as input ====");
         System.out.println(inputString.length());
         //------------------------ timing decoding process ------------------------
         startTime = System.nanoTime();
-        //---------------------------------------
         bwt_decode();
-        System.out.println(decodedString);
+        System.out.println(encodedArray);
+        System.out.println(decodedArray);
         //---------------------------------------
         endTime = System.nanoTime();
         duration = (endTime - startTime) / 10000000;// add two zeroes to get seconds.
-        System.out.println("============= duration in 1/100 second ==============");
+        System.out.println("====== decoding time  in 1/100 second =======");
         System.out.println(duration);
-        System.out.println("============= number of characters used as input ====");
-        System.out.println(inputString.length());
     }
     //========================================================================
     //========================================================================
